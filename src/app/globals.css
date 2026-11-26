@@ -1,26 +1,120 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- 머니뷰 디자인 토큰 (원본 머니뷰.html 계승) ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --line: #e5e7eb;
+  --ink: #0f1115;
+  --ink-2: #4b515c;
+  --ink-3: #8b919c;
+  --up: #e5383b;
+  --down: #2f6bff;
+  --ai-1: #7c5cff;
+  --ai-2: #3b82f6;
+  --ai-3: #22d3ee;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0b0c0e;
+  --surface: #141518;
+  --surface-2: #1c1e22;
+  --line: #26292e;
+  --ink: #f2f3f5;
+  --ink-2: #b4b9c2;
+  --ink-3: #7a808b;
+  --up: #ff5a5f;
+  --down: #4c8dff;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-ai: var(--ai-1);
+  --color-ai-2: var(--ai-2);
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: rise 0.65s var(--ease-out-expo) both;
+  --animate-fade: fade 0.4s ease both;
+  --animate-marquee: marquee 60s linear infinite;
+  --animate-ping-slow: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-orb: orb 14s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-flash-up: flashUp 0.9s ease;
+  --animate-flash-down: flashDown 0.9s ease;
+  --animate-caret: caret 1s steps(1) infinite;
+
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes orb { 50% { transform: translate(-50px, 40px) scale(1.1); } }
+  @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+  @keyframes flashUp { 0% { background: color-mix(in srgb, var(--up) 18%, transparent); } 100% { background: transparent; } }
+  @keyframes flashDown { 0% { background: color-mix(in srgb, var(--down) 18%, transparent); } 100% { background: transparent; } }
+  @keyframes caret { 50% { opacity: 0; } }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    letter-spacing: -0.01em;
+    transition: background-color 0.3s, color 0.3s;
   }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility num { font-variant-numeric: tabular-nums; }
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* AI 그라디언트 텍스트 / 테두리 */
+@utility ai-text {
+  background: linear-gradient(100deg, var(--ai-1), var(--ai-2) 55%, var(--ai-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility ai-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(120deg, color-mix(in srgb, var(--ai-1) 70%, transparent), color-mix(in srgb, var(--ai-2) 40%, transparent) 50%, color-mix(in srgb, var(--ai-3) 60%, transparent)) border-box;
+}
+@utility ai-glow {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 40px -22px color-mix(in srgb, var(--ai-1) 55%, transparent);
+}
+@utility skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in srgb, var(--ai-1) 10%, var(--surface-2)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+@utility grid-lines {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+@utility card {
+  @apply rounded-2xl border border-line bg-surface;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
