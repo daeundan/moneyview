@@ -43,29 +43,46 @@ export function SignupForm() {
   const [done, setDone] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const signingUp = useRef(false);
+  // 아이디 중복확인: 확인 버튼을 누른 아이디 (아이디를 고치면 다시 확인해야 함)
+  const [checkedId, setCheckedId] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (ready && user && !done && !signingUp.current) router.replace("/dashboard");
   }, [ready, user, done, router]);
 
   const errors = useMemo(() => {
-    const kinds = [/[a-zA-Z]/, /\d/, /[^a-zA-Z0-9]/].filter((r) => r.test(v.password)).length;
     const uname = v.username.trim().toLowerCase();
     return {
       name: !/^[가-힣a-zA-Z\s]{2,20}$/.test(v.name.trim()) ? "한글 또는 영문 2~20자로 입력해 주세요." : null,
       phone: !/^01[016789]-\d{3,4}-\d{4}$/.test(v.phone) ? "휴대전화 번호를 정확히 입력해 주세요." : null,
       email: !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim()) ? "이메일 형식이 올바르지 않아요." : null,
-      username: !/^[a-z0-9]{4,16}$/.test(uname) ? "영문 소문자·숫자 4~16자로 입력해 주세요." : isTaken(uname) ? "이미 사용 중인 아이디예요." : null,
-      password: v.password.length < 8 || v.password.length > 20 || kinds < 3 ? "영문·숫자·특수문자를 모두 포함해 8~20자로 입력해 주세요." : null,
+      username: !/^[a-z0-9]{4,16}$/.test(uname) ? "영문 소문자·숫자 4~16자로 입력해 주세요." : isTaken(uname) ? "이미 사용 중인 아이디예요." : checkedId !== uname ? "아이디 중복확인을 해 주세요." : null,
+      // 숫자만 입력해도 되고, 영문·특수문자를 섞어도 됨 (공백 제외 8~20자)
+      password: !/^[\x21-\x7e]{8,20}$/.test(v.password) ? "공백 없이 8~20자로 입력해 주세요. 숫자만 입력해도 돼요." : null,
       password2: !v.password2 || v.password !== v.password2 ? "비밀번호가 일치하지 않아요." : null,
     } as Record<Key, string | null>;
-  }, [v, isTaken]);
+  }, [v, isTaken, checkedId]);
+
+  const uname = v.username.trim().toLowerCase();
+  const formatOk = /^[a-z0-9]{4,16}$/.test(uname);
+  const checkId = async () => {
+    setTouched((t) => ({ ...t, username: true }));
+    if (!formatOk) return;
+    setChecking(true);
+    await new Promise((r) => setTimeout(r, 300));
+    setChecking(false);
+    setCheckedId(isTaken(uname) ? null : uname);
+  };
 
   const valid = Object.values(errors).every((e) => !e) && agree.privacy;
   const show = (k: Key) => (touched[k] ? errors[k] : null);
   const bind = (k: Key) => ({
     value: v[k],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setV((s) => ({ ...s, [k]: k === "phone" ? formatPhone(e.target.value) : e.target.value })),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setV((s) => ({ ...s, [k]: k === "phone" ? formatPhone(e.target.value) : e.target.value }));
+      if (k === "username") setCheckedId(null);
+    },
     onBlur: () => setTouched((t) => ({ ...t, [k]: true })),
     error: show(k),
   });
@@ -122,8 +139,15 @@ export function SignupForm() {
       <fieldset className="mt-4 animate-rise [animation-delay:.06s]">
         <legend className="mb-3 text-[12px] font-bold tracking-wider text-ink-3">계정 정보</legend>
         <Field id="su-username" label="아이디" autoComplete="username" autoCapitalize="none" placeholder="영문 소문자·숫자 4~16자" {...bind("username")}
-          ok={touched.username && !errors.username ? "사용할 수 있는 아이디예요." : null} />
-        <Field id="su-password" label="비밀번호" type="password" autoComplete="new-password" placeholder="8~20자" hint="영문 · 숫자 · 특수문자를 모두 포함해 8~20자" {...bind("password")} />
+          ok={checkedId === uname && !errors.username ? "사용할 수 있는 아이디예요." : null}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); checkId(); } }}
+          addon={
+            <button type="button" onClick={checkId} disabled={checking || !uname || checkedId === uname}
+              className="h-[52px] shrink-0 rounded-xl border border-line bg-surface px-4 text-[14px] font-semibold transition hover:border-ink-3 disabled:opacity-50">
+              {checking ? <Spinner /> : checkedId === uname ? "확인 완료" : "중복확인"}
+            </button>
+          } />
+        <Field id="su-password" label="비밀번호" type="password" autoComplete="new-password" placeholder="8~20자" hint="8~20자 · 숫자만 입력해도 돼요" {...bind("password")} />
         <Field id="su-password2" label="비밀번호 확인" type="password" autoComplete="new-password" placeholder="비밀번호 다시 입력" {...bind("password2")}
           ok={v.password2 && !errors.password2 ? "비밀번호가 일치해요." : null} />
       </fieldset>
