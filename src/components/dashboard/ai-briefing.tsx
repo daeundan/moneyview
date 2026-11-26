@@ -65,7 +65,7 @@ export function AiBriefing({ name }: { name: string }) {
           <Typed key={headline} text={headline} />
         </h1>
 
-        <ol className="mt-5 grid gap-2">
+        <ol className="mt-5 grid grid-cols-1 gap-2">
           {!live.loaded && [0, 1, 2].map((k) => <li key={k} className="h-[50px] animate-pulse rounded-xl bg-white/[.05]" />)}
           {takeaways.map((t, k) => (
             <li key={t.id} className="animate-rise" style={{ animationDelay: `${0.3 + k * 0.08}s` }}>

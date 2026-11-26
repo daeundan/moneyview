@@ -59,7 +59,7 @@ export function ImpactBoard({ limit = 6, title = "증시 영향 AI 분석", show
           </button>
         ))}
       </div>
-      <div key={cat} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div key={cat} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {!live.loaded && Array.from({ length: 3 }, (_, k) => <div key={k} className="card skeleton h-[260px]" />)}
         {shown.map((is, i) => <IssueCard key={is.id} is={is} i={i} />)}
         {live.loaded && !list.length && <p className="col-span-full py-10 text-center text-[14px] text-ink-3">이 분류에 해당하는 이슈가 아직 없어요.</p>}

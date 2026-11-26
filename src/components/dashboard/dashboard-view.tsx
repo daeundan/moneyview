@@ -16,7 +16,7 @@ export function DashboardView() {
       <MarketStrip />
       <div className="mt-6 lg:col-span-12"><RegionRankings /></div>
       <div className="mt-6 lg:col-span-12"><ImpactBoard /></div>
-      <div className="mt-6 grid gap-4 lg:col-span-12 lg:grid-cols-12 lg:gap-5">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:col-span-12 lg:grid-cols-12 lg:gap-5">
         <SectorHeatmap />
         <EventWatch />
       </div>

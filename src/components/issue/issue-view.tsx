@@ -105,7 +105,7 @@ function IssueBody({ is, ready, onReady }: { is: Issue; ready: boolean; onReady:
       {!ready ? (
         <Analyzing articles={is.articles} onDone={onReady} />
       ) : (
-        <div className="mt-7 grid gap-5 lg:grid-cols-12">
+        <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-12">
           <div className="space-y-5 lg:col-span-8">
             {/* AI 3줄 요약 */}
             <section className="ai-border ai-glow relative animate-rise overflow-hidden rounded-3xl p-6 sm:p-7">
@@ -126,7 +126,7 @@ function IssueBody({ is, ready, onReady }: { is: Issue; ready: boolean; onReady:
             {/* 핵심 포인트 */}
             <section className="card animate-rise p-6 [animation-delay:.06s]">
               <h2 className="text-[17px] font-bold tracking-tight">AI가 짚은 체크 포인트</h2>
-              <ul className="mt-4 grid gap-2.5 sm:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {is.points.map((p, k) => (
                   <li key={p} className="rounded-2xl bg-surface-2 p-4">
                     <span className="text-[11.5px] font-bold text-ink-3">POINT {k + 1}</span>
@@ -161,7 +161,7 @@ function IssueBody({ is, ready, onReady }: { is: Issue; ready: boolean; onReady:
               </div>
 
               <h3 className="mt-6 mb-3 text-[14px] font-bold text-ink-2">시나리오별 전망</h3>
-              <div className="grid gap-2.5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {scenarios.map((sc) => (
                   <div key={sc.k} className="rounded-2xl border border-line p-4">
                     <div className="flex items-center justify-between">

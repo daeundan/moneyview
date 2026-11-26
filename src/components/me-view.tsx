@@ -16,7 +16,7 @@ export function MeView() {
   return (
     <div className="mx-auto max-w-[880px]">
       <h1 className="mb-6 animate-rise text-[28px] font-extrabold tracking-[-0.04em]">내 정보</h1>
-      <div className="grid gap-5 md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-5">
         <section className="card animate-rise p-6 md:col-span-2">
           <span className="grid size-16 place-items-center rounded-full bg-ink text-[20px] font-bold text-bg">{user.name.slice(-2)}</span>
           <h2 className="mt-4 text-[20px] font-bold">{user.name}</h2>

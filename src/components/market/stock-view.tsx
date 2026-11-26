@@ -157,7 +157,7 @@ export function StockView({ code }: { code: string }) {
         {info && <FavButton code={code} name={info.name} className="size-11 border border-line" />}
       </header>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-12">
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="space-y-5 lg:col-span-8">
           {/* 차트 */}
           <section className="card p-4 sm:p-6">
@@ -186,7 +186,7 @@ export function StockView({ code }: { code: string }) {
           <section className="card p-5 sm:p-6">
             <h2 className="text-[17px] font-bold tracking-tight">시세 정보</h2>
             {q && (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <RangeBar title="오늘의 범위" low={q.low || q.price} high={q.high || q.price} cur={q.price} />
                 <RangeBar title="52주 범위" low={num(infoMap.lowPriceOf52Weeks?.value)} high={num(infoMap.highPriceOf52Weeks?.value)} cur={q.price} />
               </div>

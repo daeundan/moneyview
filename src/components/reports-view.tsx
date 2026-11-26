@@ -20,7 +20,7 @@ export function ReportsView() {
         <p className="mt-1.5 text-[15px] text-ink-3">{now ? fmtDate(now) : "----.--.--"} 기준 · 대륙별 국내 언론 보도를 모아 증권시장 관점에서 정리했어요.</p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {regions.map((r, i) => {
           const b = live.briefs[r];
           const top = live.issues.filter((x) => x.region === r).sort((a, c) => c.articles - a.articles).slice(0, 3);
