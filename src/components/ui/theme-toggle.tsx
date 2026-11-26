@@ -7,7 +7,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     const dark = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", dark);
     try {
-      localStorage.setItem("mv_theme", dark ? "dark" : "light");
+      localStorage.setItem("mv_theme2", dark ? "dark" : "light");
     } catch {}
   };
   return (

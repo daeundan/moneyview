@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 };
 
 // 기본은 다크 모드 — 사용자가 직접 라이트로 바꾼 경우에만 라이트
-const themeScript = `try{if(localStorage.getItem('mv_theme')==='light')document.documentElement.classList.remove('dark')}catch(e){}`;
+const themeScript = `try{if(localStorage.getItem('mv_theme2')==='light')document.documentElement.classList.remove('dark')}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
