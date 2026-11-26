@@ -2,7 +2,7 @@ import "server-only";
 import { ISSUES, REGION_BRIEF, REGIONS, issueById as demoIssue, type Issue, type Region, type RegionBrief } from "../issues";
 import { INITIAL_TRENDS, type RankItem, type Trends } from "../trends";
 import { INITIAL_QUOTES, type Quote } from "../market";
-import { briefOf, buildIssues, collect } from "./news";
+import { briefOf, buildIssues, collect, fetchPool } from "./news";
 import { fetchDomestic, fetchYahoo, mergeQuotes, type Tick } from "./quotes";
 import { claim, release } from "./once";
 
@@ -49,7 +49,8 @@ const DEMO: LiveSnapshot = {
 
 async function build(now: number): Promise<LiveSnapshot> {
   const prev = mem.snap?.source === "live" ? mem.snap : undefined;
-  const perRegion = await Promise.all(REGION_KEYS.map((r) => collect(r, now)));
+  const pool = await fetchPool();
+  const perRegion = await Promise.all(REGION_KEYS.map((r) => collect(r, now, pool)));
   const articleCount = perRegion.reduce((s, a) => s + a.length, 0);
   if (articleCount < 20) throw new Error("뉴스 수집 실패");
 
@@ -73,14 +74,43 @@ async function build(now: number): Promise<LiveSnapshot> {
   return { updatedAt: now, source: "live", trends, issues, briefs, articleCount };
 }
 
+/* Cloudflare에서는 요청이 여러 인스턴스로 나뉘므로, 무료 Cache API로 결과를 공유 (Node에서는 건너뜀) */
+type EdgeCache = { match(k: string): Promise<Response | undefined>; put(k: string, r: Response): Promise<void> };
+const edge = (globalThis as unknown as { caches?: { default?: EdgeCache } }).caches?.default;
+const EDGE_KEY = "https://moneyview.cache/news-snapshot";
+
+async function fromEdge(now: number): Promise<LiveSnapshot | undefined> {
+  try {
+    const x = (await (await edge?.match(EDGE_KEY))?.json()) as LiveSnapshot | undefined;
+    if (x?.source === "live" && now - x.updatedAt < NEWS_TTL) {
+      for (const i of x.issues) mem.archive.set(i.id, i);
+      return x;
+    }
+  } catch {
+    /* 캐시 없음 */
+  }
+}
+
+async function toEdge(x: LiveSnapshot) {
+  if (!edge || x.source !== "live") return;
+  try {
+    await edge.put(EDGE_KEY, new Response(JSON.stringify(x), { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${NEWS_TTL / 1000}` } }));
+  } catch {
+    /* 무시 */
+  }
+}
+
 /** 최신 뉴스 스냅샷 (다른 요청이 갱신 중이면 직전 값으로 바로 응답, 실패 시 직전 값 → 데모 순으로 대체) */
 export async function getSnapshot(): Promise<LiveSnapshot> {
   const now = Date.now();
   const s = mem.snap;
   if (s && now - s.updatedAt < NEWS_TTL) return s;
+  const shared = await fromEdge(now);
+  if (shared && (!s || shared.updatedAt > s.updatedAt)) return (mem.snap = shared);
   if (!claim("news", 20_000) && s) return s;
   try {
     mem.snap = await build(now);
+    await toEdge(mem.snap);
   } catch {
     mem.snap = mem.snap ? { ...mem.snap, updatedAt: now } : { ...DEMO, updatedAt: now };
   } finally {

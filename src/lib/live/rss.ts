@@ -33,11 +33,21 @@ const tag = (item: string, name: string) => {
   return m ? decode(m[1]) : "";
 };
 
+// 구글 뉴스는 Cloudflare 서버에서 오는 요청을 막음(503) → 한 번 실패하면 10분간 건너뜀
+const g = globalThis as unknown as { __mvGoogleDown?: number };
+const onWorkers = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+const isGoogle = (url: string) => url.startsWith("https://news.google.com/");
+
 /** RSS 한 개를 읽어 기사 목록으로 변환 (실패하면 빈 배열) */
 export async function fetchRss(url: string, defaultPress = ""): Promise<Article[]> {
+  const google = isGoogle(url);
+  if (google && (onWorkers || (g.__mvGoogleDown ?? 0) > Date.now())) return [];
   try {
-    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(8000), cache: "no-store" });
-    if (!res.ok) return [];
+    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(google ? 4000 : 8000), cache: "no-store" });
+    if (!res.ok) {
+      if (google) g.__mvGoogleDown = Date.now() + 600_000;
+      return [];
+    }
     const xml = await res.text();
     const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ?? [];
     return items
@@ -57,9 +67,12 @@ export async function fetchRss(url: string, defaultPress = ""): Promise<Article[
       })
       .filter((a) => a.title && a.link);
   } catch {
+    if (google) g.__mvGoogleDown = Date.now() + 600_000;
     return [];
   }
 }
+
+export { decode as decodeHtml };
 
 /** 구글 뉴스 검색 RSS (한국어 · 최근 1일) */
 export const googleNews = (q: string) =>

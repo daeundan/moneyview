@@ -1,5 +1,5 @@
 import "server-only";
-import { fetchRss, googleNews } from "./rss";
+import { decodeHtml, fetchRss, googleNews, type Article } from "./rss";
 import { claim, release } from "./once";
 
 /* =========================================================
@@ -242,11 +242,28 @@ export async function getChart(code: string, range: Range, kind: "item" | "index
 }
 
 /* ---------------- 종목 뉴스 (제목·링크만) ---------------- */
-export async function getStockNews(name: string) {
+type NaverNews = { items?: { officeName?: string; datetime?: string; title?: string; mobileNewsUrl?: string; officeId?: string; articleId?: string }[] }[];
+
+/** 네이버 증권 종목 뉴스 (datetime: "YYYYMMDDHHmm", 한국시간) */
+async function naverStockNews(code: string): Promise<Article[]> {
+  const d = await getJson<NaverNews>(`https://m.stock.naver.com/api/news/stock/${code}?pageSize=10`);
+  return (d ?? [])
+    .flatMap((x) => x.items ?? [])
+    .map((x) => {
+      const t = x.datetime ?? "";
+      const time = t.length >= 12 ? Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +t.slice(8, 10) - 9, +t.slice(10, 12)) : 0;
+      const link = x.mobileNewsUrl || (x.officeId && x.articleId ? `https://n.news.naver.com/mnews/article/${x.officeId}/${x.articleId}` : "");
+      return { title: decodeHtml(x.title ?? ""), link, press: x.officeName ?? "언론사", time };
+    })
+    .filter((a) => a.title && a.link);
+}
+
+export async function getStockNews(code: string, name: string) {
   return (
-    (await cached(`news:${name}`, 600_000, async () => {
-      const list = await fetchRss(googleNews(`"${name}" 주가 OR 실적 OR 주식`));
-      return list.sort((a, b) => b.time - a.time).slice(0, 8);
+    (await cached(`news:${code}`, 300_000, async () => {
+      let list = await naverStockNews(code);
+      if (!list.length) list = await fetchRss(googleNews(`"${name}" 주가 OR 실적 OR 주식`));
+      return list.length ? list.sort((a, b) => b.time - a.time).slice(0, 8) : null;
     })) ?? []
   );
 }

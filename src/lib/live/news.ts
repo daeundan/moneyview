@@ -29,6 +29,17 @@ export const FEEDS: Record<Region, { url: string; press?: string }[]> = {
   ],
 };
 
+/** 언론사 국제면 RSS — 제목에 대륙 단어가 있는 기사만 해당 대륙에 배정 (구글 뉴스가 막힌 환경 대비) */
+const POOL = [
+  { url: "https://www.yna.co.kr/rss/international.xml", press: "연합뉴스" },
+  { url: "https://www.hankyung.com/feed/international", press: "한국경제" },
+  { url: "https://www.mk.co.kr/rss/30300018/", press: "매일경제" },
+  { url: "https://www.newsis.com/RSS/international.xml", press: "뉴시스" },
+  { url: "https://www.chosun.com/arc/outboundfeeds/rss/category/international/?outputType=xml", press: "조선일보" },
+  { url: "https://rss.donga.com/international.xml", press: "동아일보" },
+];
+export const fetchPool = async () => (await Promise.all(POOL.map((f) => fetchRss(f.url, f.press)))).flat();
+
 const REGION_WORDS: Record<Region, string[]> = {
   us: ["미국", "美", "뉴욕", "월가", "연준", "트럼프"],
   eu: ["유럽", "EU", "유로", "유럽연합", "유로존", "독일", "프랑스", "영국", "ECB"],
@@ -47,7 +58,7 @@ function tokens(title: string) {
       for (const j of JOSA) if (w.endsWith(j) && w.length - j.length >= 2) return w.slice(0, -j.length);
       return w;
     })
-    .filter((w) => w.length >= 2 && w.length <= 8 && !/^\d+$/.test(w) && !STOP.has(w));
+    .filter((w) => w.length >= 2 && w.length <= 8 && !/^\d/.test(w) && !STOP.has(w));
 }
 
 /** 짧은 문자열 해시 → 키워드별 고정 id */
@@ -182,11 +193,12 @@ export function briefOf(issues: Issue[]): RegionBrief {
 }
 
 /** 피드를 모두 읽고 중복 제거 (최근 36시간) */
-export async function collect(region: Region, now: number): Promise<Article[]> {
+export async function collect(region: Region, now: number, pool: Article[] = []): Promise<Article[]> {
   const lists = await Promise.all(FEEDS[region].map((f) => fetchRss(f.url, f.press)));
+  const words = REGION_WORDS[region];
+  const extra = pool.filter((a) => words.some((w) => a.title.includes(w)));
   const seen = new Set<string>();
-  return lists
-    .flat()
+  return [...lists.flat(), ...extra]
     .filter((a) => !a.time || now - a.time < 36 * 3600_000)
     .filter((a) => {
       const k = norm(a.title).replace(/\s/g, "").slice(0, 22);

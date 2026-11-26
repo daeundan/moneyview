@@ -62,3 +62,5 @@ npm run preview      # 배포 전 Workers 환경으로 로컬 확인 (http://loc
 - Workers에서는 아직 Cache Components가 지원되지 않아 `cacheComponents`를 꺼 두었습니다.
 - Workers는 요청 사이에 Promise를 공유할 수 없어서, 동시 요청 정리는 `src/lib/live/once.ts`의 '갱신 중' 표시로 합니다.
 - 무료 플랜은 하루 요청 10만 건까지입니다. 화면이 1초마다 시세를 요청하므로, 탭 하나를 계속 열어 두면 시간당 수천 건이 쓰입니다.
+- 구글 뉴스는 Cloudflare 서버 요청을 막기 때문에(503) Workers에서는 건너뛰고, 언론사 국제면 RSS(연합·한경·매경·뉴시스·조선·동아)를 제목의 대륙 단어로 나눠 씁니다. 종목 뉴스는 네이버 증권 뉴스를 씁니다.
+- 뉴스 분석 결과는 Cloudflare Cache API(무료)에 5분간 저장해 여러 인스턴스가 함께 씁니다.

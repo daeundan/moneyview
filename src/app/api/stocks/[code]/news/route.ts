@@ -6,5 +6,5 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/stocks/[cod
   const { code } = await ctx.params;
   if (!isCode(code)) return Response.json({ news: [] }, { status: 400 });
   const info = await getInfo(code);
-  return Response.json({ news: info ? await getStockNews(info.name) : [] }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ news: info ? await getStockNews(code, info.name) : [] }, { headers: { "Cache-Control": "no-store" } });
 }
