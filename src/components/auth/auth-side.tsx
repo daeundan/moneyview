@@ -56,7 +56,7 @@ export function AuthSide() {
         </div>
       </div>
 
-      <p className="relative text-[13px] text-[#5f6570]">© 2026 MoneyView · 뉴스: 구글 뉴스·연합뉴스·한국경제 RSS · 시세: 네이버 금융 · Yahoo Finance</p>
+      <p className="relative text-[13px] text-[#5f6570]">© 2026 MoneyView · 뉴스: 언론사·구글 뉴스 RSS · 시세: 네이버 금융 · Yahoo Finance</p>
     </aside>
   );
 }

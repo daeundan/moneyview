@@ -68,7 +68,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-[1320px] px-4 pt-6 pb-12 sm:px-6 lg:px-8 lg:pt-8">{children}</main>
 
       <footer className="mx-auto hidden max-w-[1320px] px-8 pb-10 text-[12.5px] leading-relaxed text-ink-3 md:block">
-        본 서비스의 정보는 AI가 여러 기사를 요약·분석한 참고 자료이며 투자 권유가 아닙니다. 투자 판단의 책임은 이용자에게 있습니다. · 뉴스: 구글 뉴스·연합뉴스·한국경제 RSS(제목·링크만 사용) · 시세: 국내 네이버 금융(실시간) · 해외 Yahoo Finance(15~20분 지연)
+        본 서비스의 정보는 AI가 여러 기사를 요약·분석한 참고 자료이며 투자 권유가 아닙니다. 투자 판단의 책임은 이용자에게 있습니다. · 뉴스: 언론사·구글 뉴스 RSS(제목·링크만 사용) · 시세: 국내 네이버 금융(실시간) · 해외 Yahoo Finance(15~20분 지연)
       </footer>
 
       <nav aria-label="하단 메뉴" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
