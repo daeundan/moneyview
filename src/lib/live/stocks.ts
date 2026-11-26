@@ -159,28 +159,51 @@ export async function getUniverse(): Promise<Universe> {
 }
 
 /* ---------------- 실시간 가격 (1초) ---------------- */
-type Rt = Partial<StockRow> & { at: number; open?: number; high?: number; low?: number; status?: string };
+type Rt = Partial<StockRow> & { at: number; open?: number; high?: number; low?: number; status?: string; session?: "pre" | "after" };
+type Over = { tradingSessionType?: string; overMarketStatus?: string; overPrice?: string; openPrice?: string; highPrice?: string; lowPrice?: string; compareToPreviousPrice?: { code?: string }; compareToPreviousClosePrice?: string; fluctuationsRatio?: string; localTradedAt?: string; accumulatedTradingVolumeRaw?: string };
+
+/**
+ * 토스증권처럼 정규장(KRX) + 대체거래소(NXT, 08:00~20:00)를 합친 '통합' 시세로 변환
+ * - 시가: 더 먼저 열린 NXT 프리마켓 시가 / 고가·저가: 두 시장 중 최고·최저
+ * - NXT 프리·애프터마켓이 열려 있으면 현재가도 NXT 가격
+ */
+function toRt(x: Record<string, unknown>): Rt {
+  const sign = signOf((x.compareToPreviousPrice as { code?: string })?.code);
+  const krx: Rt = {
+    price: num(x.closePrice),
+    diff: sign * Math.abs(num(x.compareToPreviousClosePrice)),
+    rate: sign * Math.abs(num(x.fluctuationsRatio)),
+    volume: num(x.accumulatedTradingVolume),
+    value: num(x.accumulatedTradingValue),
+    open: num(x.openPrice),
+    high: num(x.highPrice),
+    low: num(x.lowPrice),
+    status: String(x.marketStatus ?? ""),
+    at: Date.parse(String(x.localTradedAt)) || Date.now(),
+  };
+  const o = x.overMarketPriceInfo as Over | undefined;
+  if (!o) return krx;
+  const pos = (v: unknown) => num(v) || undefined;
+  const lows = [krx.low, pos(o.lowPrice)].filter((v): v is number => !!v);
+  const highs = [krx.high, pos(o.highPrice)].filter((v): v is number => !!v);
+  const r: Rt = { ...krx, open: pos(o.openPrice) ?? krx.open, low: lows.length ? Math.min(...lows) : krx.low, high: highs.length ? Math.max(...highs) : krx.high };
+  if (o.overMarketStatus === "OPEN" && pos(o.overPrice)) {
+    const s2 = signOf(o.compareToPreviousPrice?.code);
+    r.price = num(o.overPrice);
+    r.diff = s2 * Math.abs(num(o.compareToPreviousClosePrice));
+    r.rate = s2 * Math.abs(num(o.fluctuationsRatio));
+    r.at = Date.parse(String(o.localTradedAt)) || r.at;
+    r.session = o.tradingSessionType === "PRE_MARKET" ? "pre" : "after";
+  }
+  return r;
+}
 
 async function fetchRealtime(codes: string[]): Promise<Map<string, Rt>> {
   const out = new Map<string, Rt>();
   for (let i = 0; i < codes.length; i += 80) {
     const part = codes.slice(i, i + 80);
     const { data: d } = await getJsonEx<{ datas: Record<string, unknown>[] }>(`https://polling.finance.naver.com/api/realtime/domestic/stock/${part.join(",")}`, 1200, 2);
-    for (const x of d?.datas ?? []) {
-      const sign = signOf((x.compareToPreviousPrice as { code?: string })?.code);
-      out.set(String(x.itemCode), {
-        price: num(x.closePrice),
-        diff: sign * Math.abs(num(x.compareToPreviousClosePrice)),
-        rate: sign * Math.abs(num(x.fluctuationsRatio)),
-        volume: num(x.accumulatedTradingVolume),
-        value: num(x.accumulatedTradingValue),
-        open: num(x.openPrice),
-        high: num(x.highPrice),
-        low: num(x.lowPrice),
-        status: String(x.marketStatus ?? ""),
-        at: Date.parse(String(x.localTradedAt)) || Date.now(),
-      });
-    }
+    for (const x of d?.datas ?? []) out.set(String(x.itemCode), toRt(x));
   }
   return out;
 }
@@ -264,7 +287,7 @@ export async function getInfo(code: string): Promise<StockInfo | null | undefine
 /* ---------------- 차트 ---------------- */
 export type Range = "1d" | "1w" | "1m" | "3m" | "1y" | "5y";
 export const RANGES: Range[] = ["1d", "1w", "1m", "3m", "1y", "5y"];
-export interface Point { t: number; v: number; vol: number }
+export interface Point { t: number; v: number; vol: number; hi?: number; lo?: number }
 
 const ymd = (d: Date, hm = "") => {
   const k = new Date(d.getTime() + 9 * 3600_000); // KST
@@ -273,40 +296,80 @@ const ymd = (d: Date, hm = "") => {
 /** "20261126093000" (KST) → epoch ms */
 const parseKst = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8), +(s.slice(8, 10) || 15) - 9, +(s.slice(10, 12) || 30));
 
+type MinuteRow = { localDateTime: string; currentPrice: number; highPrice?: number; lowPrice?: number; accumulatedTradingVolume: number };
+const toPoint = (r: MinuteRow): Point => ({ t: parseKst(r.localDateTime), v: r.currentPrice, vol: r.accumulatedTradingVolume, hi: r.highPrice || undefined, lo: r.lowPrice || undefined });
+
 export async function getChart(code: string, range: Range, kind: "item" | "index" = "item"): Promise<Point[]> {
   const now = new Date();
   const base = `https://api.stock.naver.com/chart/domestic/${kind}/${code}`;
   if (range === "1d" || range === "1w") {
     const start = ymd(new Date(now.getTime() - (range === "1d" ? 0 : 9) * 86400_000), "0000");
     const rows = await cached(`chart:${kind}:${code}:${range}`, 5000, () =>
-      getJson<{ localDateTime: string; currentPrice: number; accumulatedTradingVolume: number }[]>(`${base}/minute?startDateTime=${start}&endDateTime=${ymd(now, "2359")}`),
+      getJson<MinuteRow[]>(`${base}/minute?startDateTime=${start}&endDateTime=${ymd(now, "2359")}`),
     );
-    let pts = (Array.isArray(rows) ? rows : []).map((r) => ({ t: parseKst(r.localDateTime), v: r.currentPrice, vol: r.accumulatedTradingVolume }));
+    let pts = (Array.isArray(rows) ? rows : []).map(toPoint);
     // 오늘 장이 아직 안 열렸으면 마지막 거래일 분봉
     if (range === "1d" && pts.length === 0) {
       const prev = await cached(`chart:${kind}:${code}:1d-prev`, 60_000, () =>
-        getJson<{ localDateTime: string; currentPrice: number; accumulatedTradingVolume: number }[]>(`${base}/minute?startDateTime=${ymd(new Date(now.getTime() - 6 * 86400_000), "0000")}&endDateTime=${ymd(now, "2359")}`),
+        getJson<MinuteRow[]>(`${base}/minute?startDateTime=${ymd(new Date(now.getTime() - 6 * 86400_000), "0000")}&endDateTime=${ymd(now, "2359")}`),
       );
-      const all = (Array.isArray(prev) ? prev : []).map((r) => ({ t: parseKst(r.localDateTime), v: r.currentPrice, vol: r.accumulatedTradingVolume }));
+      const all = (Array.isArray(prev) ? prev : []).map(toPoint);
       const lastDay = all.length ? ymd(new Date(all[all.length - 1].t)) : "";
       pts = all.filter((p) => ymd(new Date(p.t)) === lastDay);
     }
     if (range === "1w") {
       // 최근 5거래일 · 5분 간격으로 줄이기
       const days = [...new Set(pts.map((p) => ymd(new Date(p.t))))].slice(-5);
-      pts = pts.filter((p, i) => days.includes(ymd(new Date(p.t))) && i % 5 === 0);
+      const kept = pts.filter((p) => days.includes(ymd(new Date(p.t))));
+      const out: Point[] = [];
+      for (let i = 0; i < kept.length; i += 5) {
+        const g = kept.slice(i, i + 5);
+        out.push({ ...g[0], hi: Math.max(...g.map((p) => p.hi ?? p.v)), lo: Math.min(...g.map((p) => p.lo ?? p.v)) });
+      }
+      pts = out;
     }
     return pts;
   }
   const back = { "1m": 31, "3m": 92, "1y": 366, "5y": 1830 }[range];
   const rows = await cached(`chart:${kind}:${code}:${range}`, 600_000, () =>
-    getJson<{ localDate: string; closePrice: number; accumulatedTradingVolume: number }[]>(
+    getJson<{ localDate: string; closePrice: number; highPrice?: number; lowPrice?: number; accumulatedTradingVolume: number }[]>(
       `${base}/day?startDateTime=${ymd(new Date(now.getTime() - back * 86400_000), "0000")}&endDateTime=${ymd(now, "2359")}`,
     ),
   );
-  let pts = (Array.isArray(rows) ? rows : []).map((r) => ({ t: parseKst(r.localDate), v: r.closePrice, vol: r.accumulatedTradingVolume }));
-  if (range === "5y") pts = pts.filter((_, i) => i % 5 === 0 || i === pts.length - 1);
+  let pts: Point[] = (Array.isArray(rows) ? rows : []).map((r) => ({ t: parseKst(r.localDate), v: r.closePrice, vol: r.accumulatedTradingVolume, hi: r.highPrice || undefined, lo: r.lowPrice || undefined }));
+  if (range === "5y") {
+    // 5일씩 묶기 — 묶음 안의 최고·최저는 보존
+    const out: Point[] = [];
+    for (let i = 0; i < pts.length; i += 5) {
+      const g = pts.slice(i, i + 5);
+      const last = g[g.length - 1];
+      const his = g.map((p) => p.hi ?? p.v), los = g.map((p) => p.lo ?? p.v);
+      out.push({ ...last, hi: Math.max(...his), lo: Math.min(...los) });
+    }
+    pts = out;
+  }
   return pts;
+}
+
+/* ---------------- 호가 (매도·매수 5단계, 정규장 기준) ---------------- */
+export interface OrderBook { at: number; prevClose: number; asks: { price: number; qty: number }[]; bids: { price: number; qty: number }[]; totalAsk: number; totalBid: number }
+type NaverAsking = { lastClosePrice?: number; totalSell?: string; totalBuy?: string; sellInfo?: { price: string; count: string }[]; buyInfos?: { price: string; count: string }[] };
+
+export async function getOrderBook(code: string): Promise<OrderBook | null> {
+  return cached(`ob:${code}`, 1000, async () => {
+    const d = await getJson<NaverAsking>(`https://m.stock.naver.com/api/stock/${code}/askingPrice`, 1500);
+    if (!d?.sellInfo || !d.buyInfos) return null;
+    const lv = (x: { price: string; count: string }) => ({ price: num(x.price), qty: num(x.count) });
+    return {
+      at: Date.now(),
+      prevClose: num(d.lastClosePrice),
+      // 매도는 높은 가격부터, 매수는 높은 가격부터 (토스증권과 같은 순서)
+      asks: d.sellInfo.map(lv).filter((x) => x.price).sort((a, b) => b.price - a.price),
+      bids: d.buyInfos.map(lv).filter((x) => x.price).sort((a, b) => b.price - a.price),
+      totalAsk: num(d.totalSell),
+      totalBid: num(d.totalBuy),
+    };
+  });
 }
 
 /* ---------------- 종목 뉴스 (제목·링크만) ---------------- */

@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { cx } from "@/lib/format";
 import { won } from "./parts";
 
-export interface Point { t: number; v: number; vol: number }
+export interface Point { t: number; v: number; vol: number; hi?: number; lo?: number }
 export type Range = "1d" | "1w" | "1m" | "3m" | "1y" | "5y";
 
 const W = 1000;
@@ -24,7 +24,8 @@ function label(t: number, range: Range) {
 }
 
 /** 토스증권 스타일 라인 차트 — 마우스/터치로 가격 확인, 1일 차트는 장 시간(09:00~15:30) 기준으로 그려짐 */
-export function StockChart({ points, base, range, live }: { points: Point[]; base: number; range: Range; live?: boolean }) {
+/** dayHigh·dayLow: 1일 차트에서 정규장+NXT 통합 고가·저가 (토스증권과 같은 값) */
+export function StockChart({ points, base, range, live, dayHigh, dayLow }: { points: Point[]; base: number; range: Range; live?: boolean; dayHigh?: number; dayLow?: number }) {
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -37,12 +38,13 @@ export function StockChart({ points, base, range, live }: { points: Point[]; bas
     const pad = (max - min) * 0.08 || max * 0.01;
     min -= pad;
     max += pad;
-    // 1일: x축 = 09:00 ~ 15:30 (장이 진행될수록 선이 오른쪽으로 자람)
+    // 1일: x축 = 09:00 ~ 15:30 기본, 시간외·NXT 거래가 이어지면 마지막 거래 시각까지 늘림
     let xOf: (p: Point, i: number) => number;
     if (range === "1d") {
       const d = kst(points[0].t);
-      const open = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0); // 09:00 KST
-      const close = open + 6.5 * 3600_000;
+      const nine = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0); // 09:00 KST
+      const open = Math.min(nine, points[0].t);
+      const close = Math.max(nine + 6.5 * 3600_000, points[points.length - 1].t);
       xOf = (p) => Math.min(1, Math.max(0, (p.t - open) / (close - open))) * W;
     } else xOf = (_p, i) => (i / (points.length - 1)) * W;
     const yOf = (v: number) => PAD_T + (1 - (v - min) / (max - min)) * (H - PAD_T - PAD_B);
@@ -50,10 +52,17 @@ export function StockChart({ points, base, range, live }: { points: Point[]; bas
     const line = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
     const last = xy[xy.length - 1];
     const area = `${line} L${last[0].toFixed(1)} ${H} L${xy[0][0].toFixed(1)} ${H} Z`;
-    const hiI = vals.indexOf(Math.max(...vals));
-    const loI = vals.indexOf(Math.min(...vals));
-    return { xy, line, area, refY: yOf(ref), ref, hiI, loI };
-  }, [points, base, range]);
+    // 최고·최저: 종가가 아닌 실제 고가·저가 기준 (1일은 NXT 포함 통합 값과 비교)
+    const his = points.map((p) => p.hi ?? p.v), los = points.map((p) => p.lo ?? p.v);
+    let hiV = Math.max(...his), loV = Math.min(...los);
+    if (range === "1d") {
+      if (dayHigh) hiV = Math.max(hiV, dayHigh);
+      if (dayLow) loV = Math.min(loV, dayLow);
+    }
+    const hiI = his.indexOf(Math.max(...his));
+    const loI = los.indexOf(Math.min(...los));
+    return { xy, line, area, refY: yOf(ref), ref, hiI, loI, hiV, loV };
+  }, [points, base, range, dayHigh, dayLow]);
 
   if (!geo) return <div className="grid h-[300px] place-items-center text-[14px] text-ink-3">차트 데이터를 불러오는 중…</div>;
 
@@ -108,10 +117,10 @@ export function StockChart({ points, base, range, live }: { points: Point[]; bas
       {hover == null && (
         <>
           <span className="num pointer-events-none absolute -translate-x-1/2 -translate-y-full pb-1 text-[11.5px] font-semibold text-up" style={{ left: `clamp(40px, ${pct(geo.xy[geo.hiI][0])}, calc(100% - 60px))`, top: pctY(geo.xy[geo.hiI][1]) }}>
-            최고 {won(points[geo.hiI].v)}
+            최고 {won(geo.hiV)}
           </span>
           <span className="num pointer-events-none absolute -translate-x-1/2 pt-1 text-[11.5px] font-semibold text-down" style={{ left: `clamp(40px, ${pct(geo.xy[geo.loI][0])}, calc(100% - 60px))`, top: pctY(geo.xy[geo.loI][1]) }}>
-            최저 {won(points[geo.loI].v)}
+            최저 {won(geo.loV)}
           </span>
         </>
       )}

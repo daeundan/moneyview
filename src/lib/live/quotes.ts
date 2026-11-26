@@ -47,8 +47,12 @@ async function naverBatch(kind: "index" | "stock", items: (typeof LIST)[number][
     if (!res.ok) return [];
     const datas: Record<string, unknown>[] = (await res.json())?.datas ?? [];
     const num = (v: unknown) => Number(String(v).replace(/,/g, ""));
-    return datas.flatMap((d) => {
+    return datas.flatMap((row) => {
+      let d = row;
       const it = items.find((x) => x.naver!.endsWith("/" + d.itemCode));
+      // NXT 프리·애프터마켓이 열려 있으면 통합 시세(토스증권과 동일)로 표시
+      const over = d.overMarketPriceInfo as { overMarketStatus?: string; overPrice?: string; compareToPreviousClosePrice?: string; compareToPreviousPrice?: { code?: string }; localTradedAt?: string } | undefined;
+      if (over?.overMarketStatus === "OPEN" && num(over.overPrice)) d = { ...d, closePrice: over.overPrice, compareToPreviousClosePrice: over.compareToPreviousClosePrice, compareToPreviousPrice: over.compareToPreviousPrice, localTradedAt: over.localTradedAt };
       const price = num(d.closePrice);
       const abs = Math.abs(num(d.compareToPreviousClosePrice));
       const code = String((d.compareToPreviousPrice as { code?: string })?.code ?? "3");

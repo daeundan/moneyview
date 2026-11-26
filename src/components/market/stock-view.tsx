@@ -7,9 +7,10 @@ import { cx, fmtTime } from "@/lib/format";
 import { Icon } from "@/components/ui/icons";
 import { capHangeul, FavButton, krwHangeul, StockLogo, toneOf, useFlash, won } from "./parts";
 import { StockChart, type Point, type Range } from "./stock-chart";
+import { OrderBook } from "./order-book";
 
 type Info = { code: string; name: string; market: string; type: string; description?: string; industry?: string; infos: { key: string; label: string; value: string }[] };
-type Quote = { price: number; diff: number; rate: number; volume: number; value: number; open: number; high: number; low: number; status: string; at: number };
+type Quote = { price: number; diff: number; rate: number; volume: number; value: number; open: number; high: number; low: number; status: string; at: number; session?: "pre" | "after" };
 type Detail = { at: number; info: Info; quote: Quote | null; cap: number | null; error?: string; partial?: boolean };
 
 const RANGES: [Range, string][] = [["1d", "1일"], ["1w", "1주"], ["1m", "1달"], ["3m", "3달"], ["1y", "1년"], ["5y", "5년"]];
@@ -106,6 +107,7 @@ export function StockView({ code }: { code: string }) {
   }
 
   const open = q?.status === "OPEN";
+  const live = open || !!q?.session;
   const rangeChange = (() => {
     if (range === "1d" || points.length < 2 || !q) return null;
     const d = q.price - points[0].v;
@@ -150,7 +152,7 @@ export function StockView({ code }: { code: string }) {
           {q ? (
             <>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                <b key={flash?.n} className={cx("num -mx-1 rounded-lg px-1 text-[34px] leading-tight font-extrabold tracking-[-0.03em] sm:text-[40px]", toneOf(q.diff), flash?.dir === "up" && "animate-flash-up", flash?.dir === "down" && "animate-flash-down")}>
+                <b key={flash?.n} className={cx("num -mx-1 rounded-lg px-1 text-[34px] leading-tight font-bold tracking-[-0.03em] text-[#161616] sm:text-[40px] dark:text-ink", flash?.dir === "up" && "animate-flash-up", flash?.dir === "down" && "animate-flash-down")}>
                   {won(q.price)}<span className="text-[24px] sm:text-[28px]">원</span>
                 </b>
               </div>
@@ -159,8 +161,8 @@ export function StockView({ code }: { code: string }) {
                 {q.diff > 0 ? "+" : q.diff < 0 ? "-" : ""}{won(Math.abs(q.diff))}원 ({q.rate > 0 ? "+" : ""}{q.rate.toFixed(2)}%)
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-ink-3">
-                <span className={cx("size-1.5 rounded-full", open ? "animate-pulse bg-up" : "bg-ink-3")} />
-                {open ? "실시간" : "장 마감"} · {data?.at ? fmtTime(new Date(data.at)) : ""} 기준
+                <span className={cx("size-1.5 rounded-full", live ? "animate-pulse bg-up" : "bg-ink-3")} />
+                {q.session === "pre" ? "NXT 프리마켓" : q.session === "after" ? "NXT 애프터마켓" : open ? "실시간" : "장 마감"} · {data?.at ? fmtTime(new Date(data.at)) : ""} 기준 · 정규장+NXT 통합
               </p>
             </>
           ) : (
@@ -176,7 +178,7 @@ export function StockView({ code }: { code: string }) {
           <section className="card p-4 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className="text-[13px] text-ink-3">
-                {range === "1d" ? "오늘 09:00 ~ 15:30" : rangeChange ? (
+                {range === "1d" ? "오늘 · 정규장(KRX) 기준 차트" : rangeChange ? (
                   <>
                     {RANGES.find((r) => r[0] === range)![1]} 수익률{" "}
                     <b className={cx("num font-bold", toneOf(rangeChange.d))}>{rangeChange.r > 0 ? "+" : ""}{rangeChange.r.toFixed(2)}%</b>
@@ -184,7 +186,7 @@ export function StockView({ code }: { code: string }) {
                 ) : ""}
               </span>
             </div>
-            <StockChart points={points} base={prevClose} range={range} live={range === "1d" && open} />
+            <StockChart points={points} base={prevClose} range={range} live={range === "1d" && live} dayHigh={q?.high || undefined} dayLow={q?.low || undefined} />
             <div role="tablist" className="mt-4 grid grid-cols-6 gap-1 rounded-xl bg-surface-2 p-1">
               {RANGES.map(([k, label]) => (
                 <button key={k} role="tab" aria-selected={range === k} onClick={() => setRange(k)}
@@ -224,10 +226,11 @@ export function StockView({ code }: { code: string }) {
         </div>
 
         <aside className="space-y-5 lg:col-span-4">
+          <OrderBook code={code} price={q?.price} />
           <News code={code} />
           <p className="flex items-start gap-2 rounded-2xl bg-surface-2 p-4 text-[12.5px] leading-relaxed text-ink-3">
             <Icon name="info" className="mt-0.5 size-4 shrink-0" />
-            시세는 네이버 금융 공개 데이터(학습·테스트용)를 1초마다 받아와요. 실제 주문 화면의 가격과 약간 차이가 날 수 있으며 투자 권유가 아닙니다.
+            시세는 네이버 금융 공개 데이터(학습·테스트용)를 1초마다 받아와요. 현재가·시가·고가·저가는 정규장(KRX)과 대체거래소(NXT)를 합친 통합 값이고, 차트와 호가는 정규장 기준이에요. 투자 권유가 아닙니다.
           </p>
         </aside>
       </div>
