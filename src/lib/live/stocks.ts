@@ -1,5 +1,6 @@
 import "server-only";
 import { fetchRss, googleNews } from "./rss";
+import { claim, release } from "./once";
 
 /* =========================================================
    국내 전 종목 시세 (네이버 금융 공개 엔드포인트 · 무료 · 키 불필요)
@@ -46,7 +47,6 @@ async function getJson<T>(url: string, ms = 5000): Promise<T | null> {
 
 type Mem = {
   universe?: { at: number; rows: StockRow[]; byCode: Map<string, StockRow> };
-  universePending?: Promise<void>;
   rt: Map<string, { at: number; data: Map<string, Partial<StockRow> & { at: number }> }>;
   cache: Map<string, { at: number; data: unknown }>;
 };
@@ -89,13 +89,16 @@ async function fetchMarket(market: Market): Promise<StockRow[]> {
 export async function getUniverse() {
   const now = Date.now();
   if (!mem.universe || now - mem.universe.at > 60_000) {
-    mem.universePending ??= Promise.all([fetchMarket("KOSPI"), fetchMarket("KOSDAQ")])
-      .then(([a, b]) => {
+    // 다른 요청이 이미 받아오는 중이면 직전 목록으로 응답
+    if (claim("universe", 30_000) || !mem.universe) {
+      try {
+        const [a, b] = await Promise.all([fetchMarket("KOSPI"), fetchMarket("KOSDAQ")]);
         const rows = [...a, ...b];
         if (rows.length > 100) mem.universe = { at: Date.now(), rows, byCode: new Map(rows.map((r) => [r.code, r])) };
-      })
-      .finally(() => (mem.universePending = undefined));
-    if (!mem.universe) await mem.universePending;
+      } finally {
+        release("universe");
+      }
+    }
   }
   return mem.universe ?? { at: now, rows: [], byCode: new Map<string, StockRow>() };
 }

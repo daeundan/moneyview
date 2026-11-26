@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "moneyview",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // 자기 자신을 가리키는 바인딩 (이름은 위 name과 같아야 함)
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "moneyview"
+    }
+  ]
+  // 무료 유지: R2(결제수단 필요)·Images 바인딩은 쓰지 않음
+}

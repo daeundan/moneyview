@@ -4,6 +4,7 @@ import { INITIAL_TRENDS, type RankItem, type Trends } from "../trends";
 import { INITIAL_QUOTES, type Quote } from "../market";
 import { briefOf, buildIssues, collect } from "./news";
 import { fetchDomestic, fetchYahoo, mergeQuotes, type Tick } from "./quotes";
+import { claim, release } from "./once";
 
 /* =========================================================
    서버 메모리 캐시 (DB 없이 무료로 동작)
@@ -30,12 +31,9 @@ export interface LiveSnapshot {
 
 type Mem = {
   snap?: LiveSnapshot;
-  pending?: Promise<LiveSnapshot>;
   archive: Map<string, Issue>;
   yahoo?: { at: number; data: Quote[] };
-  yahooPending?: Promise<void>;
   dom?: { at: number; data: Map<string, Tick> };
-  domPending?: Promise<void>;
 };
 const g = globalThis as unknown as { __mv?: Mem };
 const mem: Mem = (g.__mv ??= { archive: new Map() });
@@ -75,17 +73,20 @@ async function build(now: number): Promise<LiveSnapshot> {
   return { updatedAt: now, source: "live", trends, issues, briefs, articleCount };
 }
 
-/** 최신 뉴스 스냅샷 (캐시 만료 시 백그라운드 갱신, 실패 시 직전 값 → 데모 순으로 대체) */
+/** 최신 뉴스 스냅샷 (다른 요청이 갱신 중이면 직전 값으로 바로 응답, 실패 시 직전 값 → 데모 순으로 대체) */
 export async function getSnapshot(): Promise<LiveSnapshot> {
   const now = Date.now();
   const s = mem.snap;
   if (s && now - s.updatedAt < NEWS_TTL) return s;
-  mem.pending ??= build(now)
-    .then((x) => (mem.snap = x))
-    .catch(() => (mem.snap = mem.snap ? { ...mem.snap, updatedAt: now } : { ...DEMO, updatedAt: now }))
-    .finally(() => (mem.pending = undefined));
-  // 이전 값이 있으면 기다리지 않고 바로 응답 (stale-while-revalidate)
-  return s ?? mem.pending;
+  if (!claim("news", 20_000) && s) return s;
+  try {
+    mem.snap = await build(now);
+  } catch {
+    mem.snap = mem.snap ? { ...mem.snap, updatedAt: now } : { ...DEMO, updatedAt: now };
+  } finally {
+    release("news");
+  }
+  return mem.snap;
 }
 
 /** 이슈 상세 — 최근 수집분 → 데모 데이터 순으로 찾기 */
@@ -96,23 +97,30 @@ export async function getIssue(id: string): Promise<Issue | undefined> {
 
 export async function getQuotes(): Promise<{ at: number; data: Quote[]; source: "live" | "demo" }> {
   const now = Date.now();
-  // 해외·미니차트: 만료되면 백그라운드 갱신 (처음 한 번만 기다림)
+  const jobs: Promise<void>[] = [];
+  // 해외·미니차트: 1분마다 갱신
   if (!mem.yahoo || now - mem.yahoo.at > YAHOO_TTL) {
-    mem.yahooPending ??= fetchYahoo()
-      .then((data) => {
-        if (data.length >= 5) mem.yahoo = { at: Date.now(), data };
-      })
-      .finally(() => (mem.yahooPending = undefined));
+    if (claim("yahoo", 10_000) || !mem.yahoo)
+      jobs.push(
+        fetchYahoo()
+          .then((data) => {
+            if (data.length >= 5) mem.yahoo = { at: Date.now(), data };
+          })
+          .finally(() => release("yahoo")),
+      );
   }
-  // 국내 실시간: 1초가 지났으면 새로 받아옴 (동시 요청은 하나로 합침)
+  // 국내 실시간: 1초가 지났으면 새로 받아옴 (동시에 온 요청은 직전 값 사용)
   if (!mem.dom || now - mem.dom.at > DOMESTIC_TTL) {
-    mem.domPending ??= fetchDomestic()
-      .then((data) => {
-        if (data.size) mem.dom = { at: Date.now(), data };
-      })
-      .finally(() => (mem.domPending = undefined));
+    if (claim("dom", 3_000) || !mem.dom)
+      jobs.push(
+        fetchDomestic()
+          .then((data) => {
+            if (data.size) mem.dom = { at: Date.now(), data };
+          })
+          .finally(() => release("dom")),
+      );
   }
-  await Promise.all([mem.yahoo ? null : mem.yahooPending, mem.domPending]);
+  await Promise.allSettled(jobs);
 
   const base = mem.yahoo?.data ?? INITIAL_QUOTES;
   return {

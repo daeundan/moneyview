@@ -48,3 +48,17 @@ npm run dev        # http://localhost:3000
 
 - 교시 3~4: Supabase(무료 플랜) 연결 → 수집 결과·회원 정보 저장 (`src/components/providers.tsx` 교체)
 - 교시 6: AI API 연결 시 실제 AI 요약 (유료 — 무료 모드에서는 생략)
+
+## 배포 (Cloudflare Workers 무료 플랜)
+
+```bash
+npx wrangler login   # 처음 한 번, 브라우저에서 Cloudflare 로그인
+npm run deploy       # 빌드 + 배포 → https://moneyview.<계정>.workers.dev
+npm run preview      # 배포 전 Workers 환경으로 로컬 확인 (http://localhost:8787)
+```
+
+- 어댑터: `@opennextjs/cloudflare` (설정: `wrangler.jsonc`, `open-next.config.ts`)
+- 무료 유지를 위해 R2·KV·Images 바인딩은 쓰지 않습니다.
+- Workers에서는 아직 Cache Components가 지원되지 않아 `cacheComponents`를 꺼 두었습니다.
+- Workers는 요청 사이에 Promise를 공유할 수 없어서, 동시 요청 정리는 `src/lib/live/once.ts`의 '갱신 중' 표시로 합니다.
+- 무료 플랜은 하루 요청 10만 건까지입니다. 화면이 1초마다 시세를 요청하므로, 탭 하나를 계속 열어 두면 시간당 수천 건이 쓰입니다.

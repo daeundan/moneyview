@@ -11,8 +11,6 @@ export function generateStaticParams() {
 /** 제목은 화면(IssueView)에서 키워드로 바꿔 줍니다 — URL을 읽는 generateMetadata는 미리 불러오기를 막아요. */
 export const metadata: Metadata = { title: "이슈 요약 리포트" };
 
-/** 로그인 확인(브라우저)이 끝난 뒤 그려지는 화면이라 즉시 탐색 검증에서 제외 */
-export const instant = false;
 
 /** params(URL 데이터)는 Suspense 안에서 읽어야 Cache Components 규칙에 맞습니다. */
 async function IssueContent({ params }: { params: PageProps<"/issue/[id]">["params"] }) {
