@@ -38,7 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-svh pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-6 px-4 sm:px-6 lg:px-8">
           <Link href="/dashboard" aria-label="머니뷰 홈"><Brand /></Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="주 메뉴">
