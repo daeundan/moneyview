@@ -5,7 +5,7 @@ import { CATEGORIES, REGIONS, type Issue } from "@/lib/issues";
 import { useNow, usePoll } from "@/lib/hooks";
 import { ago, useLive } from "@/lib/live-client";
 import { cx, fmtDate, scoreLabel } from "@/lib/format";
-import { AiBadge, CatBadge, Gauge, ImpactBar, RegionBadge, ScorePill } from "@/components/ui/kit";
+import { AiBadge, CatBadge, Gauge, ImpactBar, RegionBadge, ScorePill, SettleNumber } from "@/components/ui/kit";
 import { Icon } from "@/components/ui/icons";
 
 const STEPS = ["관련 기사 수집", "중복·광고성 기사 제거", "핵심 문장 추출 · 요약", "섹터·종목 영향 분석"];
@@ -210,9 +210,7 @@ function IssueBody({ is, ready, onReady }: { is: Issue; ready: boolean; onReady:
             <section className="card animate-rise p-6 text-center [animation-delay:.04s] lg:sticky lg:top-[124px]">
               <h2 className="text-left text-[15px] font-bold">증시 영향 점수</h2>
               <div className="mt-3 flex justify-center"><Gauge value={is.score} size={220} label="증시 영향" /></div>
-              <div className={cx("num -mt-1 text-[36px] font-extrabold tracking-[-0.04em]", is.score >= 0 ? "text-up" : "text-down")}>
-                {is.score > 0 ? "+" : ""}{is.score}
-              </div>
+              <SettleNumber value={is.score} className={cx("num -mt-1 block text-[36px] font-extrabold tracking-[-0.04em]", is.score >= 0 ? "text-up" : "text-down")} />
               <div className="text-[14px] font-semibold text-ink-2">{scoreLabel(is.score)}</div>
               <div className="mt-4"><ImpactBar score={is.score} /></div>
               <div className="mt-1.5 flex justify-between text-[11px] text-ink-3"><span>-100 악재</span><span>+100 호재</span></div>

@@ -10,7 +10,7 @@ import { StockChart, type Point, type Range } from "./stock-chart";
 
 type Info = { code: string; name: string; market: string; type: string; description?: string; industry?: string; infos: { key: string; label: string; value: string }[] };
 type Quote = { price: number; diff: number; rate: number; volume: number; value: number; open: number; high: number; low: number; status: string; at: number };
-type Detail = { at: number; info: Info; quote: Quote | null; cap: number | null; error?: string };
+type Detail = { at: number; info: Info; quote: Quote | null; cap: number | null; error?: string; partial?: boolean };
 
 const RANGES: [Range, string][] = [["1d", "1일"], ["1w", "1주"], ["1m", "1달"], ["3m", "3달"], ["1y", "1년"], ["5y", "5년"]];
 const num = (s?: string) => Number(String(s ?? "").replace(/[^0-9.-]/g, "")) || 0;
@@ -65,7 +65,20 @@ function News({ code }: { code: string }) {
 export function StockView({ code }: { code: string }) {
   const [range, setRange] = useState<Range>("1d");
   const [more, setMore] = useState(false);
-  const { data, updatedAt } = usePoll<Detail | null>(`/api/stocks/${code}`, 1000, null);
+  const { data: latest } = usePoll<Detail | null>(`/api/stocks/${code}`, 1000, null);
+  // 한 번이라도 정상으로 받은 값은 유지 — 일시 오류로 화면이 깜빡이지 않게
+  const [good, setGood] = useState<Detail | null>(null);
+  if (latest?.info?.code === code && latest.at !== good?.at) {
+    const prev = good?.info.code === code ? good : null;
+    setGood({
+      ...latest,
+      // 기본 정보만 온 응답이면 이미 받은 상세 정보(PER·기업 개요 등)는 그대로 둠
+      info: latest.partial && prev ? prev.info : latest.info,
+      quote: latest.quote ?? prev?.quote ?? null,
+    });
+  }
+  const data = good?.info.code === code ? good : null;
+  const notFound = !data && latest?.error != null;
   const chart = usePoll<{ points: Point[] } | null>(`/api/stocks/${code}/chart?range=${range}`, range === "1d" ? 10_000 : range === "1w" ? 60_000 : 600_000, null);
 
   const info = data?.info;
@@ -83,7 +96,7 @@ export function StockView({ code }: { code: string }) {
     return [...p, { t: q.at, v: q.price, vol: 0 }];
   }, [chart.data, q, range]);
 
-  if (data?.error || (updatedAt && !data)) {
+  if (notFound) {
     return (
       <div className="mx-auto mt-16 max-w-[420px] text-center">
         <h1 className="text-[22px] font-bold">종목을 찾을 수 없어요</h1>
@@ -147,7 +160,7 @@ export function StockView({ code }: { code: string }) {
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-ink-3">
                 <span className={cx("size-1.5 rounded-full", open ? "animate-pulse bg-up" : "bg-ink-3")} />
-                {open ? "실시간" : "장 마감"} · {updatedAt ? fmtTime(new Date(updatedAt)) : ""} 기준
+                {open ? "실시간" : "장 마감"} · {data?.at ? fmtTime(new Date(data.at)) : ""} 기준
               </p>
             </>
           ) : (

@@ -87,9 +87,9 @@ export function MarketView() {
   const { data, updatedAt } = usePoll<Resp | null>(url, 1000, null);
   // 탭을 바꾸는 동안 이전 목록을 잠시 유지해서 깜빡임 방지
   const [last, setLast] = useState<Resp | null>(null);
-  if (data && data !== last) setLast(data);
-  const shown = data ?? last;
-  const stale = !data;
+  if (data && data !== last && (data.rows.length || q || tab === "fav")) setLast(data);
+  const shown = last;
+  const stale = data !== last;
 
   const reset = () => setPages(1);
 
@@ -168,7 +168,7 @@ export function MarketView() {
             {Array.from({ length: 10 }, (_, k) => <li key={k} className="skeleton h-[60px] rounded-2xl" />)}
           </ul>
         ) : shown.rows.length === 0 ? (
-          <p className="py-16 text-center text-[14px] text-ink-3">‘{q}’에 맞는 종목이 없어요.</p>
+          <p className="py-16 text-center text-[14px] text-ink-3">{q ? `‘${q}’에 맞는 종목이 없어요.` : "시세를 불러오는 중이에요. 잠시만 기다려 주세요."}</p>
         ) : (
           <ul className={cx("pt-1 transition-opacity", stale && "opacity-60")}>
             {shown.rows.map((r, i) => <StockRowItem key={r.code} r={r} rank={i + 1} />)}

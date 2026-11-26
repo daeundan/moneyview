@@ -1,4 +1,6 @@
+"use client";
 import { CATEGORIES, REGIONS, type Category, type Region } from "@/lib/issues";
+import { useSettle } from "@/lib/use-settle";
 import { cx, scoreLabel } from "@/lib/format";
 import { Icon } from "./icons";
 
@@ -77,14 +79,15 @@ export function Sparkline({ data, up, width = 96, height = 30, area = false, cla
   );
 }
 
-/** -100 ~ 100 증시 영향 점수 막대 (가운데 기준 양방향) */
+/** -100 ~ 100 증시 영향 점수 막대 (가운데 기준 양방향, 흔들리다 멈추는 애니메이션) */
 export function ImpactBar({ score, className }: { score: number; className?: string }) {
-  const w = Math.min(Math.abs(score), 100) / 2;
+  const v = useSettle(score, 0, { fill: 700, wobble: 1100 });
+  const w = Math.min(Math.abs(v), 100) / 2;
   return (
     <div className={cx("relative h-1.5 w-full rounded-full bg-surface-2", className)} role="img" aria-label={`증시 영향 ${score > 0 ? "+" : ""}${score}`}>
       <span className="absolute top-[-3px] left-1/2 h-3 w-px bg-line" />
-      <span className={cx("absolute top-0 h-full rounded-full transition-all duration-700", score >= 0 ? "bg-up" : "bg-down")}
-        style={score >= 0 ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }} />
+      <span className={cx("absolute top-0 h-full rounded-full", v >= 0 ? "bg-up" : "bg-down")}
+        style={v >= 0 ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }} />
     </div>
   );
 }
@@ -98,9 +101,10 @@ export function ScorePill({ score }: { score: number }) {
   );
 }
 
-/** 반원 게이지 (-100 ~ 100) */
+/** 반원 게이지 (-100 ~ 100) — 왼쪽 끝에서 차오른 뒤 목표 근처에서 흔들리다 멈춤 */
 export function Gauge({ value, size = 200, dark = false, label }: { value: number; size?: number; dark?: boolean; label?: string }) {
-  const r = 80, c = Math.PI * r, k = (Math.max(-100, Math.min(100, value)) + 100) / 200;
+  const v = useSettle(value);
+  const r = 80, c = Math.PI * r, k = (Math.max(-100, Math.min(100, v)) + 100) / 200;
   const ang = Math.PI * (1 - k);
   const nx = 100 + Math.cos(ang) * 64, ny = 100 - Math.sin(ang) * 64;
   return (
@@ -113,12 +117,17 @@ export function Gauge({ value, size = 200, dark = false, label }: { value: numbe
         </linearGradient>
       </defs>
       <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke={dark ? "rgba(255,255,255,.08)" : "var(--surface-2)"} strokeWidth="14" strokeLinecap="round" />
-      <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke={`url(#g-${dark ? "d" : "l"})`} strokeWidth="14" strokeLinecap="round"
-        strokeDasharray={`${c * k} ${c}`} style={{ transition: "stroke-dasharray 1s cubic-bezier(.22,1,.36,1)" }} />
-      <line x1="100" y1="100" x2={nx} y2={ny} stroke={dark ? "#fff" : "var(--ink)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "all 1s cubic-bezier(.22,1,.36,1)" }} />
+      <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke={`url(#g-${dark ? "d" : "l"})`} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${c * k} ${c}`} />
+      <line x1="100" y1="100" x2={nx} y2={ny} stroke={dark ? "#fff" : "var(--ink)"} strokeWidth="3" strokeLinecap="round" />
       <circle cx="100" cy="100" r="6" fill={dark ? "#fff" : "var(--ink)"} />
     </svg>
   );
+}
+
+/** 게이지와 같은 박자로 움직이는 숫자 */
+export function SettleNumber({ value, className }: { value: number; className?: string }) {
+  const v = Math.round(useSettle(value));
+  return <span className={className}>{v > 0 ? "+" : ""}{v}</span>;
 }
 
 export function SectionHead({ title, desc, right, ai }: { title: string; desc?: string; right?: React.ReactNode; ai?: boolean }) {

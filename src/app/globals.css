@@ -55,6 +55,7 @@
   --animate-flash-up: flashUp 0.9s ease;
   --animate-flash-down: flashDown 0.9s ease;
   --animate-caret: caret 1s steps(1) infinite;
+  --animate-page: page 0.45s var(--ease-out-expo) both;
 
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
@@ -64,12 +65,21 @@
   @keyframes flashUp { 0% { background: color-mix(in srgb, var(--up) 18%, transparent); } 100% { background: transparent; } }
   @keyframes flashDown { 0% { background: color-mix(in srgb, var(--down) 18%, transparent); } 100% { background: transparent; } }
   @keyframes caret { 50% { opacity: 0; } }
+  @keyframes page { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 }
 
 @layer base {
-  html { -webkit-text-size-adjust: 100%; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* 모바일에서 화면 끝을 넘겨 끌어도 흰 바탕이 보이지 않게 */
+    background-color: var(--bg);
+    overscroll-behavior-y: none;
+    /* 화면보다 넓은 요소가 생겨도 옆으로 밀리거나, 축소 시 뒷배경이 보이지 않게 */
+    overflow-x: clip;
+  }
   body {
     @apply bg-bg text-ink font-sans antialiased;
+    overflow-x: clip;
     letter-spacing: -0.01em;
     transition: background-color 0.3s, color 0.3s;
   }
@@ -117,4 +127,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* 움직임 줄이기 설정 사용자 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-page, .animate-rise, .animate-fade { animation: none !important; }
 }

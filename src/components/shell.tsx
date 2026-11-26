@@ -29,7 +29,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !user)
     return (
-      <div className="grid min-h-dvh place-items-center">
+      <div className="grid min-h-svh place-items-center">
         <div className="flex items-center gap-3 text-ink-3"><span className="size-5 animate-spin rounded-full border-2 border-line border-t-ink" />불러오는 중…</div>
       </div>
     );
@@ -37,7 +37,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const active = (href: string) => path === href || (href === "/dashboard" && path.startsWith("/issue")) || (href === "/market" && path.startsWith("/stock"));
 
   return (
-    <div className="min-h-dvh pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="min-h-svh pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-6 px-4 sm:px-6 lg:px-8">
           <Link href="/dashboard" aria-label="머니뷰 홈"><Brand /></Link>

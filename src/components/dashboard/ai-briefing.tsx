@@ -5,7 +5,7 @@ import { REGIONS, type Issue, type Region } from "@/lib/issues";
 import { useNow } from "@/lib/hooks";
 import { moodLabel, moodOf, useLive } from "@/lib/live-client";
 import { fmtDate, fmtHM } from "@/lib/format";
-import { Gauge } from "@/components/ui/kit";
+import { Gauge, SettleNumber } from "@/components/ui/kit";
 import { Icon } from "@/components/ui/icons";
 
 /** 영향이 큰 이슈 순 (기사량 × 점수 강도) */
@@ -117,9 +117,10 @@ export function MoodCard() {
         <span className="text-[12px] text-ink-3">-100 ~ +100</span>
       </div>
       <div className="mt-4 flex flex-1 flex-col items-center justify-center">
-        <Gauge value={GLOBAL_MOOD} size={230} label="투자심리" />
+        {/* 데이터가 오면 왼쪽 끝에서 차오르기 시작 */}
+        <Gauge value={live.loaded ? GLOBAL_MOOD : -100} size={230} label="투자심리" />
         <div className="-mt-2 text-center">
-          <div className={"num text-[34px] font-extrabold tracking-[-0.04em] " + (GLOBAL_MOOD >= 0 ? "text-up" : "text-down")}>{GLOBAL_MOOD > 0 ? "+" : ""}{GLOBAL_MOOD}</div>
+          <SettleNumber value={live.loaded ? GLOBAL_MOOD : -100} className={"num block text-[34px] font-extrabold tracking-[-0.04em] " + (!live.loaded ? "invisible" : GLOBAL_MOOD >= 0 ? "text-up" : "text-down")} />
           <div className="text-[14px] font-semibold text-ink-2">{live.loaded ? moodLabel(GLOBAL_MOOD) : "계산 중…"}</div>
         </div>
       </div>
