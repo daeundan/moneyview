@@ -55,7 +55,8 @@ export function SignupForm() {
     const uname = v.username.trim().toLowerCase();
     return {
       name: !/^[가-힣a-zA-Z\s]{2,20}$/.test(v.name.trim()) ? "한글 또는 영문 2~20자로 입력해 주세요." : null,
-      phone: !/^01[016789]-\d{3,4}-\d{4}$/.test(v.phone) ? "휴대전화 번호를 정확히 입력해 주세요." : null,
+      // 휴대폰 번호: 숫자만 11자리, 010으로 시작 (하이픈은 자동 표시)
+      phone: !/^010\d{8}$/.test(v.phone.replace(/\D/g, "")) ? "010으로 시작하는 휴대폰 번호 11자리를 숫자로 입력해 주세요." : null,
       email: !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim()) ? "이메일 형식이 올바르지 않아요." : null,
       username: !/^[a-z0-9]{4,16}$/.test(uname) ? "영문 소문자·숫자 4~16자로 입력해 주세요." : isTaken(uname) ? "이미 사용 중인 아이디예요." : checkedId !== uname ? "아이디 중복확인을 해 주세요." : null,
       // 숫자만 입력해도 되고, 영문·특수문자를 섞어도 됨 (공백 제외 8~20자)
