@@ -76,6 +76,8 @@
     overscroll-behavior-y: none;
     /* 화면보다 넓은 요소가 생겨도 옆으로 밀리거나, 축소 시 뒷배경이 보이지 않게 */
     overflow-x: clip;
+    /* 두 손가락 확대·축소 막기 (스크롤은 그대로) */
+    touch-action: pan-x pan-y;
   }
   body {
     @apply bg-bg text-ink font-sans antialiased;

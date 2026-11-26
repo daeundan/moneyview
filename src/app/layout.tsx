@@ -13,12 +13,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // 앱처럼 쓰도록 손가락 확대·축소 막음 (축소 시 화면이 작아지며 뒷배경이 보이던 문제)
+  minimumScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#0b0c0e",
 };
 
 // 기본은 다크 모드 — 사용자가 직접 라이트로 바꾼 경우에만 라이트
-const themeScript = `try{if(localStorage.getItem('mv_theme2')==='light')document.documentElement.classList.remove('dark')}catch(e){}`;
+const themeScript = `try{if(localStorage.getItem('mv_theme2')==='light')document.documentElement.classList.remove('dark')}catch(e){}try{['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault()},{passive:false})});document.addEventListener('touchmove',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false})}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
